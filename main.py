@@ -1,99 +1,90 @@
+import os
+import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
-import time
+from selenium.common.exceptions import NoSuchElementException
+from dotenv import load_dotenv
+from webdriver_manager.chrome import ChromeDriverManager
 
-ACCOUNT_EMAIL = YOUR LOGIN EMAIL
-ACCOUNT_PASSWORD = YOUR LOGIN PASSWORD
-PHONE = YOUR PHONE NUMBER
+# Load environment variables
+load_dotenv()
 
+ACCOUNT_EMAIL = os.getenv("LINKEDIN_EMAIL")
+ACCOUNT_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
+PHONE = os.getenv("PHONE_NUMBER")
 
 def abort_application():
-    # Click Close Button
-    close_button = driver.find_element(by=By.CLASS_NAME, value="artdeco-modal__dismiss")
+    """Close the application pop-up and discard progress if it's a complex application."""
+    close_button = driver.find_element(By.CLASS_NAME, "artdeco-modal__dismiss")
     close_button.click()
-
     time.sleep(2)
-    # Click Discard Button
-    discard_button = driver.find_elements(by=By.CLASS_NAME, value="artdeco-modal__confirm-dialog-btn")[1]
+    discard_button = driver.find_elements(By.CLASS_NAME, "artdeco-modal__confirm-dialog-btn")[1]
     discard_button.click()
 
-
-chrome_driver_path = YOUR CHROME DRIVER PATH
-
-# Optional - Automatically keep your chromedriver up to date.
-from webdriver_manager.chrome import ChromeDriverManager  # pip install webdriver-manager
-chrome_driver_path = ChromeDriverManager(path=YOUR CHROME DRIVER FOLDER).install()
-
-# Optional - Keep the browser open if the script crashes.
+# Set up Chrome WebDriver
 chrome_options = webdriver.ChromeOptions()
-chrome_options.add_experimental_option("detach", True)
+chrome_options.add_experimental_option("detach", True)  # Keeps browser open after script ends
 
-service = ChromeService(executable_path=chrome_driver_path)
+service = ChromeService(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
-driver.get("https://www.linkedin.com/jobs/search/?currentJobId=3586148395&f_LF=f_AL&geoId=101356765&"
-           "keywords=python&location=London%2C%20England%2C%20United%20Kingdom&refresh=true")
+# Navigate to LinkedIn Jobs
+driver.get("https://www.linkedin.com/jobs/search/?keywords=Python%20Developer&location=India")
 
-# Click Reject Cookies Button
+# Handle cookie pop-up
 time.sleep(2)
-reject_button = driver.find_element(by=By.CSS_SELECTOR, value='button[action-type="DENY"]')
-reject_button.click()
-
-# Click Sign in Button
-time.sleep(2)
-sign_in_button = driver.find_element(by=By.LINK_TEXT, value="Sign in")
-sign_in_button.click()
+try:
+    reject_button = driver.find_element(By.CSS_SELECTOR, 'button[action-type="DENY"]')
+    reject_button.click()
+except NoSuchElementException:
+    print("No cookie pop-up found, continuing...")
 
 # Sign in
+time.sleep(2)
+sign_in_button = driver.find_element(By.LINK_TEXT, "Sign in")
+sign_in_button.click()
+
 time.sleep(5)
-email_field = driver.find_element(by=By.ID, value="username")
+email_field = driver.find_element(By.ID, "username")
 email_field.send_keys(ACCOUNT_EMAIL)
-password_field = driver.find_element(by=By.ID, value="password")
+password_field = driver.find_element(By.ID, "password")
 password_field.send_keys(ACCOUNT_PASSWORD)
 password_field.send_keys(Keys.ENTER)
 
-# CAPTCHA - Solve Puzzle Manually
-input("Press Enter when you have solved the Captcha")
+# Wait for manual CAPTCHA verification
+input("Press Enter when you have solved the CAPTCHA...")
 
-# Get Listings
+# Get job listings
 time.sleep(5)
-all_listings = driver.find_elements(by=By.CSS_SELECTOR, value=".job-card-container--clickable")
+all_listings = driver.find_elements(By.CSS_SELECTOR, ".job-card-container--clickable")
 
-# Apply for Jobs
+# Apply for jobs
 for listing in all_listings:
-    print("Opening Listing")
+    print("Opening job listing...")
     listing.click()
     time.sleep(2)
     try:
-        # Click Apply Button
-        apply_button = driver.find_element(by=By.CSS_SELECTOR, value=".jobs-s-apply button")
+        apply_button = driver.find_element(By.CSS_SELECTOR, ".jobs-s-apply button")
         apply_button.click()
 
-        # Insert Phone Number
-        # Find an <input> element where the id contains phoneNumber
         time.sleep(5)
-        phone = driver.find_element(by=By.CSS_SELECTOR, value="input[id*=phoneNumber]")
+        phone = driver.find_element(By.CSS_SELECTOR, "input[id*=phoneNumber]")
         if phone.text == "":
             phone.send_keys(PHONE)
 
-        # Check the Submit Button
-        submit_button = driver.find_element(by=By.CSS_SELECTOR, value="footer button")
+        submit_button = driver.find_element(By.CSS_SELECTOR, "footer button")
         if submit_button.get_attribute("data-control-name") == "continue_unify":
             abort_application()
-            print("Complex application, skipped.")
+            print("Skipped complex application.")
             continue
         else:
-            # Click Submit Button
-            print("Submitting job application")
+            print("Submitting job application...")
             submit_button.click()
 
         time.sleep(2)
-        # Click Close Button
-        close_button = driver.find_element(by=By.CLASS_NAME, value="artdeco-modal__dismiss")
-        close_button.click()
+        driver.find_element(By.CLASS_NAME, "artdeco-modal__dismiss").click()
 
     except NoSuchElementException:
         abort_application()
